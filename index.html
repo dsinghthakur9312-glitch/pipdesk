@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c1017">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+<title>Pip Desk</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: one phone-width column. Sticky pair bar on top, one calculator panel at a time, tab bar pinned to the bottom. Single dark look by design. */
+:root{
+  --bg:#0c1017; --surface:#141a23; --surface-2:#1b2330; --line:#263043;
+  --fg:#e8ecf2; --muted:#8d99ab; --accent:#e3b25b; --accent-ink:#1a1306;
+  --gain:#3dd6a0; --loss:#ff6b6b; --warn:#f0c36a;
+  --font-ui:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-num:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:0 84px}
+.wrap{max-width:560px;margin-inline:auto}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-block:18px 10px}
+.brand{font-size:22px;font-weight:600;letter-spacing:-.01em}
+.brand span{color:var(--accent)}
+.tag{font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:8px 12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field.full{grid-column:1/-1}
+label,.lbl{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+input,select{width:100%;min-width:0;height:44px;background:var(--surface-2);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:0 12px;font-family:var(--font-num);font-size:16px}
+select{font-family:var(--font-ui)}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:12px;color:var(--muted);margin:8px 0 0}
+h2{font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:22px 0 10px}
+.panel{display:flex;flex-direction:column;gap:12px}
+.res{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;min-width:0}
+.tile .k{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.tile .v{font-family:var(--font-num);font-size:24px;font-weight:600;margin-top:2px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.tile.big{grid-column:1/-1}
+.tile.big .v{font-size:34px}
+.tile.gain .v{color:var(--gain)}
+.tile.loss .v{color:var(--loss)}
+.tile.key{border-color:var(--accent)}
+.warn{display:none;font-size:13px;color:var(--warn);background:var(--surface);border:1px solid var(--warn);border-radius:8px;padding:8px 12px}
+.warn.on{display:block}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{height:44px;border:0;background:var(--surface-2);color:var(--muted);font:600 15px var(--font-ui);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.seg button.sell[aria-pressed="true"]{background:var(--loss);color:#2a0808}
+table{width:100%;border-collapse:collapse;font-family:var(--font-num);font-size:14px;font-variant-numeric:tabular-nums}
+td{padding:8px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right}
+tr:last-child td{border-bottom:0}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:2px;z-index:10}
+nav button{height:48px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:500 12px var(--font-ui);letter-spacing:.02em;cursor:pointer;padding:0 2px}
+nav button[aria-selected="true"]{background:var(--surface-2);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.foot{font-size:12px;color:var(--muted);margin:22px 0 0}
+.btn{height:46px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font:600 15px var(--font-ui);cursor:pointer;width:100%}
+.btn.ghost{background:var(--surface-2);color:var(--fg);border:1px solid var(--line);height:40px;font-weight:500;font-size:14px}
+.btn.danger{color:var(--loss);border-color:var(--loss)}
+input.txt{font-family:var(--font-ui)}
+.trade{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.trow{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.pair-name{font-weight:600}
+.badge{font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px;border:1px solid var(--line);color:var(--muted);margin-left:8px}
+.badge.buy{color:var(--accent);border-color:var(--accent)}
+.badge.sell{color:var(--loss);border-color:var(--loss)}
+.meta{font-size:12px;color:var(--muted);font-family:var(--font-num);overflow-wrap:anywhere}
+.pl{font-family:var(--font-num);font-size:18px;font-weight:600;white-space:nowrap}
+.note{font-size:13px;overflow-wrap:anywhere}
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:20px 14px;text-align:center;color:var(--muted);font-size:14px}
+.status{font-size:13px;color:var(--muted);min-height:20px;margin:0}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.acts .btn{width:auto;flex:1;min-width:120px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">Pip<span>Desk</span></div>
+    <div class="tag">Forex · Gold · Crypto</div>
+  </header>
+
+  <div class="bar">
+    <div class="card grid">
+      <div class="field">
+        <label for="pair">Pair</label>
+        <select id="pair"></select>
+      </div>
+      <div class="field">
+        <label for="pv">Pip value per lot (USD)</label>
+        <input id="pv" type="number" inputmode="decimal" step="any" value="10">
+      </div>
+      <div class="field">
+        <label for="acc">Account currency</label>
+        <select id="acc"><option value="USD">USD ($)</option><option value="INR">INR (&#8377;)</option></select>
+      </div>
+      <div class="field" id="fx-wrap" hidden>
+        <label for="fx">1 USD in INR</label>
+        <input id="fx" type="number" inputmode="decimal" step="any" value="88">
+      </div>
+    </div>
+  </div>
+
+  <section id="p-lot" class="panel" role="tabpanel">
+    <div class="card grid">
+      <div class="field"><label for="l-bal" id="lbl-lbal">Balance ($)</label><input id="l-bal" type="number" inputmode="decimal" step="any" value="1000"></div>
+      <div class="field"><label for="l-risk">Risk (%)</label><input id="l-risk" type="number" inputmode="decimal" step="any" value="2"></div>
+      <div class="field"><label for="l-sl">Stop loss (pips)</label><input id="l-sl" type="number" inputmode="decimal" step="any" value="20"></div>
+      <div class="field"><label for="l-tp">Take profit (pips)</label><input id="l-tp" type="number" inputmode="decimal" step="any" value="40"></div>
+    </div>
+    <div class="res">
+      <div class="tile big key"><div class="k">Lot size</div><div class="v" id="l-lot">-</div></div>
+      <div class="tile loss"><div class="k">Loss at stop</div><div class="v" id="l-loss">-</div></div>
+      <div class="tile gain"><div class="k">Profit at target</div><div class="v" id="l-profit">-</div></div>
+      <div class="tile"><div class="k">Risk : reward</div><div class="v" id="l-rr">-</div></div>
+      <div class="tile"><div class="k">Units</div><div class="v" id="l-units">-</div></div>
+    </div>
+    <p class="hint">Lot size is rounded down to 0.01, so the loss shown is what you actually risk at that size.</p>
+  </section>
+
+  <section id="p-trade" class="panel" role="tabpanel" hidden>
+    <div class="seg" role="group" aria-label="Trade direction">
+      <button type="button" id="t-buy" aria-pressed="true">Buy</button>
+      <button type="button" id="t-sell" class="sell" aria-pressed="false">Sell</button>
+    </div>
+    <div class="card grid">
+      <div class="field"><label for="t-lots">Lots</label><input id="t-lots" type="number" inputmode="decimal" step="any" value="0.1"></div>
+      <div class="field"><label for="t-entry">Entry price</label><input id="t-entry" type="number" inputmode="decimal" step="any"></div>
+      <div class="field"><label for="t-sl">Stop loss price</label><input id="t-sl" type="number" inputmode="decimal" step="any"></div>
+      <div class="field"><label for="t-tp">Target price</label><input id="t-tp" type="number" inputmode="decimal" step="any"></div>
+    </div>
+    <div class="warn" id="t-warn"></div>
+    <div class="res">
+      <div class="tile gain"><div class="k">Profit at target</div><div class="v" id="t-profit">-</div></div>
+      <div class="tile loss"><div class="k">Loss at stop</div><div class="v" id="t-loss">-</div></div>
+      <div class="tile"><div class="k">Pips to target</div><div class="v" id="t-tpips">-</div></div>
+      <div class="tile"><div class="k">Pips to stop</div><div class="v" id="t-spips">-</div></div>
+      <div class="tile big"><div class="k">Risk : reward</div><div class="v" id="t-rr">-</div></div>
+    </div>
+    <h2>If you exit at another price</h2>
+    <div class="card grid">
+      <div class="field"><label for="t-exit">Exit price</label><input id="t-exit" type="number" inputmode="decimal" step="any"></div>
+      <div class="field"><label>Result</label><div class="tile" style="padding:8px 12px"><div class="v" id="t-xres" style="font-size:20px">-</div></div></div>
+    </div>
+    <p class="hint" id="t-xpips"></p>
+    <h2>Save this trade</h2>
+    <div class="card grid">
+      <div class="field full"><label for="t-note">Note (optional)</label><input id="t-note" class="txt" type="text" maxlength="140" placeholder="e.g. entered after news"></div>
+      <div class="field full"><button type="button" class="btn" id="t-save">Save trade</button></div>
+    </div>
+    <p class="status" id="t-saved"></p>
+    <p class="hint">The result saved is the one at your exit price above.</p>
+  </section>
+
+  <section id="p-pip" class="panel" role="tabpanel" hidden>
+    <div class="card grid">
+      <div class="field"><label for="p-lots">Lots</label><input id="p-lots" type="number" inputmode="decimal" step="any" value="1"></div>
+      <div class="field"><label>Pip size</label><div class="tile" style="padding:8px 12px"><div class="v" id="p-size" style="font-size:20px">-</div></div></div>
+    </div>
+    <div class="res">
+      <div class="tile big key"><div class="k">Value of 1 pip</div><div class="v" id="p-one">-</div></div>
+    </div>
+    <div class="card"><table id="p-table"></table></div>
+    <h2>Pips between two prices</h2>
+    <div class="card grid">
+      <div class="field"><label for="p-a">Price A</label><input id="p-a" type="number" inputmode="decimal" step="any"></div>
+      <div class="field"><label for="p-b">Price B</label><input id="p-b" type="number" inputmode="decimal" step="any"></div>
+    </div>
+    <div class="res"><div class="tile big"><div class="k">Distance</div><div class="v" id="p-dist">-</div></div></div>
+  </section>
+
+  <section id="p-rr" class="panel" role="tabpanel" hidden>
+    <div class="card grid">
+      <div class="field"><label for="r-sl">Stop loss (pips)</label><input id="r-sl" type="number" inputmode="decimal" step="any" value="20"></div>
+      <div class="field"><label for="r-tp">Take profit (pips)</label><input id="r-tp" type="number" inputmode="decimal" step="any" value="40"></div>
+      <div class="field full"><label for="r-win">Your win rate (%)</label><input id="r-win" type="number" inputmode="decimal" step="any" value="40"></div>
+    </div>
+    <div class="res">
+      <div class="tile big key"><div class="k">Risk : reward</div><div class="v" id="r-rr">-</div></div>
+      <div class="tile"><div class="k">Break-even win rate</div><div class="v" id="r-be">-</div></div>
+      <div class="tile"><div class="k">Expectancy per trade</div><div class="v" id="r-ex">-</div></div>
+    </div>
+    <p class="hint">Expectancy is in R, where 1R is the amount you risk on one trade. Above 0 means the setup wins money over many trades.</p>
+  </section>
+
+  <section id="p-margin" class="panel" role="tabpanel" hidden>
+    <div class="card grid">
+      <div class="field"><label for="m-lots">Lots</label><input id="m-lots" type="number" inputmode="decimal" step="any" value="0.1"></div>
+      <div class="field"><label for="m-lev">Leverage</label>
+        <select id="m-lev"><option value="10">1:10</option><option value="20">1:20</option><option value="30">1:30</option><option value="50">1:50</option><option value="100" selected>1:100</option><option value="200">1:200</option><option value="500">1:500</option></select>
+      </div>
+      <div class="field full"><label for="m-bal" id="lbl-mbal">Balance ($)</label><input id="m-bal" type="number" inputmode="decimal" step="any" value="1000"></div>
+    </div>
+    <div class="res">
+      <div class="tile big key"><div class="k">Margin needed</div><div class="v" id="m-margin">-</div></div>
+      <div class="tile"><div class="k">Position value</div><div class="v" id="m-notional">-</div></div>
+      <div class="tile"><div class="k">Free margin</div><div class="v" id="m-free">-</div></div>
+      <div class="tile big"><div class="k">Share of balance used</div><div class="v" id="m-pct">-</div></div>
+    </div>
+  </section>
+
+  <section id="p-history" class="panel" role="tabpanel" hidden>
+    <div class="res">
+      <div class="tile big"><div class="k">Total profit / loss</div><div class="v" id="h-total">-</div></div>
+      <div class="tile"><div class="k">Trades</div><div class="v" id="h-count">0</div></div>
+      <div class="tile"><div class="k">Win rate</div><div class="v" id="h-win">-</div></div>
+    </div>
+    <p class="status" id="h-store"></p>
+    <div id="h-list" class="panel"></div>
+    <div class="acts">
+      <button type="button" class="btn ghost" id="h-copy">Copy history</button>
+      <button type="button" class="btn ghost danger" id="h-clear">Clear all</button>
+    </div>
+    <p class="status" id="h-msg"></p>
+  </section>
+
+  <p class="foot">Prices and pip values start from example rates. Type your broker's pip value above and every screen follows it. Results are estimates, not trading advice.</p>
+</div>
+
+<nav role="tablist" aria-label="Calculators">
+  <button type="button" role="tab" data-tab="lot" aria-selected="true">Lot</button>
+  <button type="button" role="tab" data-tab="trade" aria-selected="false">Trade</button>
+  <button type="button" role="tab" data-tab="pip" aria-selected="false">Pip</button>
+  <button type="button" role="tab" data-tab="rr" aria-selected="false">R : R</button>
+  <button type="button" role="tab" data-tab="margin" aria-selected="false">Margin</button>
+  <button type="button" role="tab" data-tab="history" aria-selected="false">History</button>
+</nav>
+
+<script>
+var CCY={USD:1,EUR:1.08,GBP:1.27,AUD:0.66,NZD:0.60,CAD:0.73,CHF:1.136,JPY:1/150};
+var GROUPS=[
+ ['Majors',['EURUSD','GBPUSD','AUDUSD','NZDUSD','USDJPY','USDCAD','USDCHF']],
+ ['Cross pairs',['EURGBP','EURJPY','GBPJPY','AUDJPY','EURAUD','EURCAD','EURCHF','GBPCAD','GBPCHF','GBPAUD','AUDCAD','AUDNZD','CADJPY','CHFJPY','NZDJPY']],
+ ['Gold and crypto',['XAUUSD','BTCUSD','ETHUSD']]
+];
+var SPECIAL={XAUUSD:{price:2400,contract:100,pipSize:0.1,dec:2},BTCUSD:{price:65000,contract:1,pipSize:1,dec:2},ETHUSD:{price:2500,contract:1,pipSize:1,dec:2}};
+function inst(sym){
+  if(SPECIAL[sym]){var s=SPECIAL[sym];return{sym:sym,price:s.price,contract:s.contract,pipSize:s.pipSize,dec:s.dec,pipUSD:s.contract*s.pipSize,baseUSD:s.price};}
+  var b=sym.slice(0,3),q=sym.slice(3);
+  var jpy=q==='JPY',ps=jpy?0.01:0.0001,c=100000;
+  return{sym:sym,price:CCY[b]/CCY[q],contract:c,pipSize:ps,dec:jpy?3:5,pipUSD:c*ps*CCY[q],baseUSD:CCY[b]};
+}
+var $=function(id){return document.getElementById(id)};
+var cur=null,dir='buy';
+function n(id){var v=parseFloat($(id).value);return isFinite(v)?v:NaN}
+function usd(x,sign){
+  if(!isFinite(x))return '-';
+  var s=Math.abs(x).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return (x<0?'-':(sign?'+':''))+'$'+s;
+}
+function num(x,d){return isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'-'}
+function put(id,text){$(id).textContent=text}
+var acc='USD',fxr=1;
+function money(x,sign){
+  if(!isFinite(x))return '-';
+  if(acc==='INR'){
+    var s=Math.abs(x).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2});
+    return (x<0?'-':(sign?'+':''))+'₹'+s;
+  }
+  return usd(x,sign);
+}
+
+var sel=$('pair');
+GROUPS.forEach(function(g){
+  var og=document.createElement('optgroup');og.label=g[0];
+  g[1].forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s==='XAUUSD'?'XAUUSD (gold)':s;og.appendChild(o)});
+  sel.appendChild(og);
+});
+
+function fx(v){return cur?Number(v).toFixed(cur.dec):''}
+function resetPrices(){
+  var p=cur.price,ps=cur.pipSize,sgn=dir==='buy'?1:-1;
+  $('t-entry').value=fx(p);
+  $('t-sl').value=fx(p-sgn*20*ps);
+  $('t-tp').value=fx(p+sgn*40*ps);
+  $('t-exit').value=fx(p+sgn*40*ps);
+  $('p-a').value=fx(p);
+  $('p-b').value=fx(p+25*ps);
+}
+function setPair(){
+  cur=inst(sel.value);
+  $('pv').value=Number(cur.pipUSD.toFixed(2));
+  resetPrices();
+  calcAll();
+}
+function pv(){var v=n('pv');return v>0?v:NaN}
+
+function calcLot(){
+  var bal=n('l-bal'),risk=n('l-risk'),sl=n('l-sl'),tp=n('l-tp'),v=pv();
+  var amt=bal*risk/100/fxr;
+  var raw=amt/(sl*v);
+  var lot=isFinite(raw)&&raw>0?Math.floor(raw*100+1e-9)/100:NaN;
+  put('l-lot',isFinite(lot)?lot.toFixed(2):'-');
+  put('l-loss',money(isFinite(lot)?-lot*sl*v*fxr:NaN));
+  put('l-profit',money(isFinite(lot)?lot*tp*v*fxr:NaN,true));
+  put('l-rr',sl>0&&tp>0?'1 : '+num(tp/sl,2):'-');
+  put('l-units',isFinite(lot)?num(lot*cur.contract,0):'-');
+}
+function pipsFor(price){
+  var e=n('t-entry'),sgn=dir==='buy'?1:-1;
+  return (price-e)/cur.pipSize*sgn;
+}
+function calcTrade(){
+  var lots=n('t-lots'),v=pv();
+  var tpPips=pipsFor(n('t-tp')),slPips=pipsFor(n('t-sl'));
+  var profit=tpPips*lots*v*fxr,loss=slPips*lots*v*fxr;
+  put('t-profit',money(profit,true));
+  put('t-loss',money(loss,true));
+  put('t-tpips',isFinite(tpPips)?num(tpPips,1):'-');
+  put('t-spips',isFinite(slPips)?num(slPips,1):'-');
+  put('t-rr',(tpPips>0&&slPips<0)?'1 : '+num(tpPips/Math.abs(slPips),2):'-');
+  var w=$('t-warn'),msg='';
+  if(isFinite(tpPips)&&isFinite(slPips)){
+    if(dir==='buy'){
+      if(n('t-sl')>=n('t-entry'))msg='For a buy, the stop loss should sit below your entry.';
+      else if(n('t-tp')<=n('t-entry'))msg='For a buy, the target should sit above your entry.';
+    }else{
+      if(n('t-sl')<=n('t-entry'))msg='For a sell, the stop loss should sit above your entry.';
+      else if(n('t-tp')>=n('t-entry'))msg='For a sell, the target should sit below your entry.';
+    }
+  }
+  w.textContent=msg;w.classList.toggle('on',!!msg);
+  var xp=pipsFor(n('t-exit')),xr=xp*lots*v*fxr;
+  var el=$('t-xres');
+  put('t-xres',money(xr,true));
+  el.style.color=!isFinite(xr)||xr===0?'':(xr>0?'var(--gain)':'var(--loss)');
+  put('t-xpips',isFinite(xp)?(xp>=0?'Profit of ':'Loss of ')+num(Math.abs(xp),1)+' pips on a '+(dir==='buy'?'buy':'sell')+'.':'');
+}
+function calcPip(){
+  var lots=n('p-lots'),v=pv();
+  put('p-size',cur?String(cur.pipSize):'-');
+  put('p-one',money(lots*v*fxr));
+  var rows=[1,5,10,20,50,100].map(function(p){return '<tr><td>'+p+' pips</td><td>'+money(p*lots*v*fxr)+'</td></tr>'}).join('');
+  $('p-table').innerHTML=rows;
+  var d=(n('p-b')-n('p-a'))/cur.pipSize;
+  put('p-dist',isFinite(d)?num(Math.abs(d),1)+' pips':'-');
+}
+function calcRR(){
+  var sl=n('r-sl'),tp=n('r-tp'),w=n('r-win')/100;
+  var ok=sl>0&&tp>0;
+  put('r-rr',ok?'1 : '+num(tp/sl,2):'-');
+  put('r-be',ok?num(sl/(sl+tp)*100,1)+'%':'-');
+  var ex=ok&&isFinite(w)?w*(tp/sl)-(1-w):NaN;
+  put('r-ex',isFinite(ex)?(ex>=0?'+':'')+num(ex,2)+' R':'-');
+  $('r-ex').style.color=isFinite(ex)?(ex>=0?'var(--gain)':'var(--loss)'):'';
+}
+function calcMargin(){
+  var lots=n('m-lots'),lev=n('m-lev'),bal=n('m-bal');
+  var notional=lots*cur.contract*cur.baseUSD;
+  var margin=notional/lev;
+  put('m-margin',money(margin*fxr));
+  put('m-notional',money(notional*fxr));
+  put('m-free',money(bal-margin*fxr));
+  put('m-pct',isFinite(bal)&&bal>0?num(margin*fxr/bal*100,1)+'%':'-');
+}
+function calcAll(){calcLot();calcTrade();calcPip();calcRR();calcMargin()}
+
+function setDir(d){
+  dir=d;
+  $('t-buy').setAttribute('aria-pressed',d==='buy');
+  $('t-sell').setAttribute('aria-pressed',d==='sell');
+  var e=n('t-entry'),ps=cur.pipSize,sgn=d==='buy'?1:-1;
+  $('t-sl').value=fx(e-sgn*20*ps);
+  $('t-tp').value=fx(e+sgn*40*ps);
+  $('t-exit').value=fx(e+sgn*40*ps);
+  calcTrade();
+}
+$('t-buy').addEventListener('click',function(){setDir('buy')});
+$('t-sell').addEventListener('click',function(){setDir('sell')});
+
+sel.addEventListener('change',setPair);
+document.querySelectorAll('input,select').forEach(function(e){
+  if(e.id==='pair')return;
+  e.addEventListener('input',calcAll);
+  e.addEventListener('change',calcAll);
+});
+
+var tabs=document.querySelectorAll('nav button');
+function show(name){
+  tabs.forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===name)});
+  ['lot','trade','pip','rr','margin','history'].forEach(function(t){
+    var p=$('p-'+t);var on=t===name;p.hidden=!on;
+  });
+  if(name==='history')renderHistory();
+  window.scrollTo(0,0);
+}
+tabs.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.tab)})});
+
+var KEY='pipdesk.trades.v1',trades=[],storeOk=true;
+function loadTrades(){
+  try{var raw=localStorage.getItem(KEY);trades=raw?JSON.parse(raw):[];if(!Array.isArray(trades))trades=[];}catch(e){trades=[];}
+  try{localStorage.setItem('pipdesk.test','1');localStorage.removeItem('pipdesk.test');storeOk=true;}catch(e){storeOk=false;}
+}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(trades));return true}catch(e){storeOk=false;return false}}
+function fmtDate(ts){return new Date(ts).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'})}
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e}
+function plColor(x){return x>0?'var(--gain)':(x<0?'var(--loss)':'')}
+
+$('t-save').addEventListener('click',function(){
+  var lots=n('t-lots'),v=pv(),entry=n('t-entry'),exit=n('t-exit');
+  var pips=pipsFor(exit),pl=pips*lots*v,msg=$('t-saved');
+  if(!(lots>0)||!isFinite(entry)||!isFinite(exit)||!isFinite(pl)){msg.textContent='Fill in lots, entry price and exit price first.';return}
+  trades.unshift({id:Date.now(),ts:Date.now(),pair:cur.sym,dir:dir,lots:lots,entry:entry,exit:exit,dec:cur.dec,pips:pips,pl:pl,note:$('t-note').value.trim()});
+  var ok=persist();
+  $('t-note').value='';
+  msg.textContent=ok?'Saved. See it in the History tab.':'Saved for now, but this view cannot keep history after you close it.';
+});
+
+function renderHistory(){
+  var list=$('h-list');list.textContent='';
+  var cb=$('h-clear');cb.dataset.arm='';cb.textContent='Clear all';
+  $('h-msg').textContent='';
+  var total=0,wins=0;
+  trades.forEach(function(t){total+=t.pl;if(t.pl>0)wins++});
+  var tot=$('h-total');
+  tot.textContent=money(trades.length?total*fxr:NaN,true);
+  tot.style.color=trades.length?plColor(total):'';
+  put('h-count',String(trades.length));
+  put('h-win',trades.length?num(wins/trades.length*100,0)+'%':'-');
+  put('h-store',storeOk?'':'This view cannot keep history after you close it. Open the web link in Chrome to keep your trades.');
+  if(!trades.length){list.appendChild(el('div','empty','No trades yet. Set up a trade on the Trade tab, then press Save trade.'));return}
+  trades.forEach(function(t){
+    var c=el('div','trade');
+    var r1=el('div','trow'),left=el('div');
+    left.appendChild(el('span','pair-name',t.pair));
+    left.appendChild(el('span','badge '+t.dir,t.dir));
+    var pl=el('div','pl',money(t.pl*fxr,true));pl.style.color=plColor(t.pl);
+    r1.appendChild(left);r1.appendChild(pl);c.appendChild(r1);
+    c.appendChild(el('div','meta',t.entry.toFixed(t.dec)+' to '+t.exit.toFixed(t.dec)+' | '+t.lots+' lots | '+num(t.pips,1)+' pips'));
+    c.appendChild(el('div','meta',fmtDate(t.ts)));
+    if(t.note)c.appendChild(el('div','note',t.note));
+    var del=el('button','btn ghost','Delete');del.type='button';
+    del.addEventListener('click',function(){
+      if(del.dataset.arm==='1'){trades=trades.filter(function(x){return x.id!==t.id});persist();renderHistory()}
+      else{del.dataset.arm='1';del.textContent='Tap again to delete'}
+    });
+    c.appendChild(del);
+    list.appendChild(c);
+  });
+}
+$('h-copy').addEventListener('click',function(){
+  var m=$('h-msg');
+  if(!trades.length){m.textContent='Nothing to copy yet.';return}
+  var txt=trades.map(function(t){return fmtDate(t.ts)+' | '+t.pair+' '+t.dir.toUpperCase()+' | '+t.lots+' lots | '+t.entry.toFixed(t.dec)+' to '+t.exit.toFixed(t.dec)+' | '+num(t.pips,1)+' pips | '+money(t.pl*fxr,true)+(t.note?' | '+t.note:'')}).join('\n');
+  try{navigator.clipboard.writeText(txt).then(function(){m.textContent='History copied.'},function(){m.textContent='Could not copy on this device.'})}catch(e){m.textContent='Could not copy on this device.'}
+});
+$('h-clear').addEventListener('click',function(){
+  var b=$('h-clear');
+  if(b.dataset.arm==='1'){trades=[];persist();renderHistory()}
+  else if(trades.length){b.dataset.arm='1';b.textContent='Tap again to clear everything'}
+});
+function setAcc(convert){
+  var old=fxr;
+  acc=$('acc').value;
+  var r=parseFloat($('fx').value);
+  fxr=acc==='INR'?(r>0?r:NaN):1;
+  $('fx-wrap').hidden=acc!=='INR';
+  var sym=acc==='INR'?'₹':'$';
+  $('lbl-lbal').textContent='Balance ('+sym+')';
+  $('lbl-mbal').textContent='Balance ('+sym+')';
+  if(convert&&isFinite(old)&&isFinite(fxr)){
+    ['l-bal','m-bal'].forEach(function(id){
+      var v=n(id);
+      if(isFinite(v))$(id).value=Math.round(v*fxr/old*100)/100;
+    });
+  }
+  calcAll();
+  if(!$('p-history').hidden)renderHistory();
+}
+$('acc').addEventListener('change',function(){setAcc(true)});
+$('fx').addEventListener('input',function(){setAcc(false)});
+loadTrades();
+
+sel.value='EURUSD';
+setPair();
+</script>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+</script>
